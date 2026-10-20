@@ -1,6 +1,11 @@
 """Streamlit version of Luna (for Streamlit Community Cloud). Run: streamlit run streamlit_app.py"""
 import os, sys
 from datetime import date, timedelta
+from pathlib import Path
+
+# Resolve files next to this script, not the launch folder (Streamlit Cloud runs from the repo root).
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))  # so `import rag` works from any launch folder
 
 # Streamlit Cloud's system sqlite can be too old for Chroma; use the bundled one if available.
 try:
@@ -12,7 +17,7 @@ except ImportError:
 import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv(override=True)  # always use the latest .env values (Streamlit reruns keep old env vars)
+load_dotenv(HERE / ".env", override=True)  # always use the latest .env values (Streamlit reruns keep old env vars)
 # On Streamlit Cloud, keys come from App settings -> Secrets (same names as .env).
 try:
     for k, v in st.secrets.items():
@@ -58,6 +63,28 @@ st.markdown("""
 .log:last-child { border-bottom: 0; }
 .muted { color: #9a5a69; font-size: .82rem; }
 .stButton > button { border-radius: 12px; font-weight: 600; }
+/* Pin colours so the page stays readable when the viewer's browser/Streamlit is in dark mode. */
+.stApp { color-scheme: light; color: #4A0E1C; }
+.stApp p, .stApp li, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp strong,
+[data-testid="stChatMessage"] *, [data-testid="stWidgetLabel"] *, [data-testid="stMarkdownContainer"] { color: #4A0E1C !important; }
+.stApp a, [data-testid="stChatMessage"] a { color: #C8102E !important; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] * { color: #9a5a69 !important; }
+.stTabs [data-baseweb="tab"] *, .stTabs [data-baseweb="tab"] { color: #8B0A1E !important; }
+.stTabs [aria-selected="true"], .stTabs [aria-selected="true"] * { color: #fff !important; }
+.stButton > button { background: #fff !important; color: #8B0A1E !important; border: 1px solid #f6c9d3 !important; }
+.stButton > button * { color: inherit !important; }
+.stButton > button:hover { border-color: #C8102E !important; color: #C8102E !important; }
+.stButton > button[kind="primary"] { background: #C8102E !important; color: #fff !important; border-color: #C8102E !important; }
+[data-testid="stBottom"], [data-testid="stBottom"] > div, [data-testid="stBottomBlockContainer"] { background: #fff1f3 !important; }
+[data-testid="stChatInput"], [data-testid="stChatInput"] > div { background: #fff !important; border-color: #f6c9d3 !important; }
+[data-testid="stChatInput"] textarea { background: #fff !important; color: #4A0E1C !important; caret-color: #C8102E; }
+[data-testid="stChatInput"] textarea::placeholder { color: #9a5a69 !important; opacity: 1; }
+[data-testid="stChatInput"] button { background: #C8102E !important; color: #fff !important; }
+[data-testid="stChatInput"] button svg { fill: #fff !important; color: #fff !important; }
+[data-baseweb="input"], [data-baseweb="input"] > div, [data-baseweb="input"] input,
+[data-baseweb="base-input"], [data-testid="stNumberInput"] button { background: #fff !important; color: #4A0E1C !important; border-color: #f6c9d3 !important; }
+[data-testid="stSpinner"] * { color: #8B0A1E !important; }
+.stApp .luna-hero, .stApp .luna-hero *, .stApp .next, .stApp .next * { color: #fff !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,7 +92,7 @@ st.markdown("""
 @st.cache_resource(show_spinner="Loading Luna's health library…")
 def get_kb():
     kb = KnowledgeBase()
-    kb.ingest("knowledge/sources.json")
+    kb.ingest(HERE / "knowledge" / "sources.json")
     return kb
 
 
@@ -98,7 +125,7 @@ with chat:
             st.session_state.offer = None
             try:
                 with st.spinner("Asking the AI…"):
-                    st.session_state.msgs.append({"role": "assistant", "content": general_answer(offer)})
+                    st.session_state.msgs.append({"role": "assistant", "content": general_answer(offer, st.session_state.msgs[1:])})
             except Exception as e:
                 st.session_state.msgs.append({"role": "assistant", "content": f"Sorry, the AI provider returned an error: {e}"})
             st.rerun()
@@ -111,6 +138,11 @@ with chat:
             if col.button(q, use_container_width=True):
                 st.session_state.pending = q
                 st.rerun()
+    else:
+        if st.button("🔄 New chat", help="Clear the conversation so Luna forgets earlier messages"):
+            st.session_state.pop("msgs", None)
+            st.session_state.offer = None
+            st.rerun()
     st.caption("🩺 Educational information only — not a diagnosis. For severe pain, very heavy bleeding or "
                "feeling faint, contact a doctor or emergency services.")
 
@@ -120,10 +152,11 @@ if q:
     st.session_state.offer = None
     try:
         with st.spinner("Checking trusted sources…"):
-            r = answer_question(q, kb)
+            # Earlier turns (minus the greeting and this question) give Luna the conversation's context.
+            r = answer_question(q, kb, history=st.session_state.msgs[1:-1])
         text = r["answer"]
         if r.get("offer_general"):
-            st.session_state.offer = q
+            st.session_state.offer = r.get("search_query", q)
         if r["sources"]:
             text += "\n\n---\n**📚 Sources**\n" + "\n".join(f"{s['n']}. [{s['title']}]({s['url']})" for s in r["sources"])
     except Exception as e:

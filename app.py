@@ -5,10 +5,11 @@ from flask import Flask, request, jsonify, send_from_directory
 from dotenv import load_dotenv
 from rag import KnowledgeBase, answer_question
 
-load_dotenv(override=True)  # always use the latest .env values (Streamlit reruns keep old env vars)
+HERE = Path(__file__).resolve().parent  # works whichever folder the app is started from
+load_dotenv(HERE / ".env", override=True)  # always use the latest .env values (Streamlit reruns keep old env vars)
 app = Flask(__name__, static_folder="static")
 kb = KnowledgeBase()
-KB_STATUS = kb.ingest(Path("knowledge/sources.json"))
+KB_STATUS = kb.ingest(HERE / "knowledge" / "sources.json")
 
 @app.after_request
 def allow_local_cors(resp):
@@ -35,8 +36,11 @@ def chat():
     question = str(body.get("message", "")).strip()
     if not question or len(question) > 1200:
         return jsonify({"error": "Please enter a question under 1,200 characters."}), 400
+    # Earlier turns of this chat ([{role, content}, ...]) so Luna can understand follow-up questions.
+    history = body.get("history")
+    history = history[-20:] if isinstance(history, list) else []
     try:
-        result = answer_question(question, kb)
+        result = answer_question(question, kb, history=history)
         return jsonify(result)
     except Exception:
         app.logger.exception("Chat request failed")

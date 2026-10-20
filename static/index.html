@@ -109,6 +109,7 @@
     <form class="ask" id="chatForm">
       <input type="text" id="question" maxlength="1200" placeholder="Type your question..." autocomplete="off" required>
       <button class="btn" id="send">Send</button>
+      <button type="button" class="btn ghost" id="newChat" title="Clear the conversation so Luna forgets earlier messages">New chat</button>
     </form>
     <p class="note">Educational information only - not a diagnosis. See a clinician for personal advice.</p>
   </section>
@@ -151,6 +152,10 @@ $("tabTracker").onclick = () => showTab("tracker");
 // ---------- chat ----------
 // Works when served by Flask, or when this file is opened directly (server must still be running).
 const API = location.port === "5000" ? "" : "http://127.0.0.1:5000";
+// Earlier turns of this chat, sent with each question so Luna can follow up ("is that normal?").
+let history = [];
+const HISTORY_SENT = 8;
+const GREETING = $("messages").innerHTML;
 
 function addMessage(text, who, sources) {
   const div = document.createElement("div");
@@ -186,12 +191,13 @@ async function ask(q) {
     const res = await fetch(API + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: q }),
+      body: JSON.stringify({ message: q, history: history.slice(-HISTORY_SENT) }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Request failed");
     loading.remove();
     addMessage(data.answer, "luna", data.sources);
+    history.push({ role: "user", content: q }, { role: "assistant", content: data.answer });
   } catch (err) {
     loading.remove();
     addMessage(err.message === "Failed to fetch"
@@ -203,6 +209,12 @@ async function ask(q) {
   }
 }
 $("chatForm").onsubmit = (e) => { e.preventDefault(); ask($("question").value); };
+$("newChat").onclick = () => {
+  history = [];
+  $("messages").innerHTML = GREETING;
+  $("chips").classList.remove("hidden");
+  $("question").focus();
+};
 document.querySelectorAll("#chips button").forEach((b) => (b.onclick = () => ask(b.textContent)));
 
 // ---------- tracker (localStorage only) ----------

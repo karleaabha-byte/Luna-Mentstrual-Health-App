@@ -65,7 +65,7 @@ class KnowledgeBase:
         try:
             import chromadb, hashlib
             self.embedder = get_embedder()
-            client = chromadb.PersistentClient(path=os.getenv("CHROMA_PATH", ".chroma"))
+            client = chromadb.PersistentClient(path=os.getenv("CHROMA_PATH", str(Path(__file__).resolve().parent / ".chroma")))
             fingerprint = hashlib.sha1(json.dumps([(c["id"], c["text"]) for c in self.chunks]).encode()).hexdigest()
             try:
                 col = client.get_collection("luna_health_sources")
@@ -123,10 +123,22 @@ def _numbering(chunks):
     return nums
 
 
-def build_prompt(question, chunks):
+def with_user_context(prompt, history):
+    """Add the user's earlier messages just before the final "Question:" so follow-ups make sense.
+    Only the user's own messages are included, so the prompt's answer format is unchanged."""
+    earlier = [m["content"][:500] for m in history or [] if m["role"] == "user"]
+    if not earlier:
+        return prompt
+    note = ("Earlier messages from the user in this conversation (context only - use them to understand what the "
+            "question refers to and what the user has told you):\n" + "\n".join(f"- {t}" for t in earlier))
+    head, sep, tail = prompt.rpartition("\n\nQuestion: ")
+    return head + "\n\n" + note + sep + tail
+
+
+def build_prompt(question, chunks, history=None):
     nums = _numbering(chunks)
     ctx = "\n".join(f"[{nums[c['url']]}] {c['title']} ({c['url']}): {c['text']}" for c in chunks)
-    return PROMPT_TEMPLATE.format(context=ctx, question=question)
+    return with_user_context(PROMPT_TEMPLATE.format(context=ctx, question=question), history)
 
 
 GENERAL_PROMPT = (
@@ -143,19 +155,65 @@ NOT_IN_SOURCES = ("I couldn't find this in my trusted health sources, so I can't
 GENERAL_LABEL = "⚠️ *Not found in Luna's trusted sources — this is a general AI answer, so double-check important details with a clinician.*\n\n"
 
 
-def general_answer(question):
+CONDENSE_PROMPT = (
+    "Rewrite the user's latest message as one standalone question that makes sense without the conversation, "
+    "replacing words like 'it', 'that' or 'the second one' with what they refer to in the earlier messages. "
+    "If it is already standalone, return it unchanged. Output only the question.\n\n"
+    "Conversation:\n{conversation}\n\nLatest message: {question}"
+)
+_YES = re.compile(r"^(yes|yeah|yep|sure|ok|okay|please|go ahead|do it)\b", re.I)
+
+
+def clean_history(history, max_messages=None):
+    """Last few {role, content} turns of the chat, trimmed, with source lists and citation numbers removed
+    (old [n] numbers would clash with the new excerpts). HISTORY_MESSAGES sets how many are kept (default 8)."""
+    if max_messages is None:
+        max_messages = int(os.getenv("HISTORY_MESSAGES", "8"))
+    out = []
+    for m in history or []:
+        if not isinstance(m, dict) or m.get("role") not in ("user", "assistant"):
+            continue
+        text = str(m.get("content", "")).split("\n\n---\n")[0].replace(GENERAL_LABEL, "")
+        if m["role"] == "assistant":
+            text = re.sub(r"\s?\[\d+\]", "", text)
+        text = text.strip()
+        if text:
+            out.append({"role": m["role"], "content": text[:1500]})
+    return out[-max_messages:] if max_messages > 0 else []
+
+
+def standalone_question(question, history):
+    """Retrieval query for a follow-up ("is that normal?"): rewritten with the LLM using earlier turns,
+    or, without an LLM, the previous user message prepended."""
+    if not history:
+        return question
+    if os.getenv("LLM_API_KEY"):
+        convo = "\n".join(f"{m['role'].title()}: {m['content'][:500]}" for m in history)
+        try:
+            q = generate(CONDENSE_PROMPT.format(conversation=convo, question=question), temperature=0).strip().strip('"')
+            if q:
+                return q[:1200]
+        except Exception as e:
+            log.warning("Couldn't rewrite follow-up question, using the previous message instead: %s", e)
+    prev = [m["content"] for m in history if m["role"] == "user"][-1:]
+    return " ".join(prev + [question])
+
+
+def general_answer(question, history=None):
     """Ungrounded answer from the LLM's general knowledge, clearly labelled (same temperature as RAG answers)."""
-    return GENERAL_LABEL + generate(GENERAL_PROMPT.format(question=question))
+    return GENERAL_LABEL + generate(with_user_context(GENERAL_PROMPT.format(question=question), clean_history(history)))
 
 
-def generate(prompt, retries=5):
+def generate(prompt, retries=5, temperature=None):
     """Call the chat-completions API, retrying on rate limits (429) / temporary 5xx errors."""
     import time, requests
     base = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    if temperature is None:
+        temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
     for attempt in range(retries + 1):
         r = requests.post(base + "/chat/completions",
                           headers={"Authorization": "Bearer " + os.environ["LLM_API_KEY"], "Content-Type": "application/json"},
-                          json={"model": os.getenv("LLM_MODEL", "gpt-4o-mini"), "temperature": float(os.getenv("LLM_TEMPERATURE", "0.2")),
+                          json={"model": os.getenv("LLM_MODEL", "gpt-4o-mini"), "temperature": temperature,
                                 "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]},
                           timeout=35)
         if r.status_code in (429, 500, 502, 503) and attempt < retries:
@@ -173,19 +231,29 @@ def _sources(chunks):
     return [{"n": n, "title": titles[u], "url": u} for u, n in _numbering(chunks).items()]
 
 
-def answer_question(question, kb, k=5):
-    chunks = kb.retrieve(question, k=k)
+def answer_question(question, kb, k=5, history=None):
+    """`history` is the earlier chat as [{"role": "user"|"assistant", "content": str}, ...], oldest first."""
+    history = clean_history(history)
     mode = getattr(kb, "mode", "unknown")
+    # "yes" right after Luna offered a general AI answer: answer the question that was offered.
+    if (history and history[-1]["role"] == "assistant" and history[-1]["content"].startswith(NOT_IN_SOURCES[:60])
+            and _YES.match(question.strip()) and len(question) < 40 and os.getenv("LLM_API_KEY")):
+        prev = [m["content"] for m in history[:-1] if m["role"] == "user"]
+        if prev:
+            return {"answer": general_answer(prev[-1], history[:-2]), "sources": [], "contexts": [],
+                    "retrieval_mode": mode, "grounded": False, "offer_general": False, "search_query": prev[-1]}
+    search = standalone_question(question, history)
+    chunks = kb.retrieve(search, k=k)
     if not chunks:
         # GENERAL_ANSWERS: "ask" (default) = offer an AI answer, "auto" = answer straight away, "off" = never.
         policy = os.getenv("GENERAL_ANSWERS", "ask").lower()
         can = bool(os.getenv("LLM_API_KEY")) and policy != "off"
         if can and policy == "auto":
-            return {"answer": general_answer(question), "sources": [], "contexts": [], "retrieval_mode": mode,
-                    "grounded": False, "offer_general": False}
+            return {"answer": general_answer(search, history), "sources": [], "contexts": [], "retrieval_mode": mode,
+                    "grounded": False, "offer_general": False, "search_query": search}
         msg = (NOT_IN_SOURCES if can else NO_EVIDENCE)
         return {"answer": msg, "sources": [], "contexts": [], "retrieval_mode": mode,
-                "grounded": False, "offer_general": can}
+                "grounded": False, "offer_general": can, "search_query": search}
     if not os.getenv("LLM_API_KEY"):
         # Honest local fallback; avoids pretending an LLM was used.
         # Join retrieved chunks without the overlapping sentences, and stop at a sentence boundary.
@@ -197,6 +265,6 @@ def answer_question(question, kb, k=5):
         answer = ("I'm running without a configured AI provider, so this is a source-based summary rather than a "
                   "generated answer.\n\n" + " ".join(sents) + "\n\nFor a tailored answer, configure LLM_API_KEY in .env.")
     else:
-        answer = generate(build_prompt(question, chunks))
+        answer = generate(build_prompt(question, chunks, history))
     return {"answer": answer, "sources": _sources(chunks), "contexts": [c["text"] for c in chunks],
-            "retrieval_mode": mode, "grounded": True, "offer_general": False}
+            "retrieval_mode": mode, "grounded": True, "offer_general": False, "search_query": search}
