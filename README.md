@@ -41,16 +41,6 @@ Run `pytest -q`. Tests cover retrieval, chunking, relevance filtering, RAGAS-rea
 
 `knowledge/sources.json` → sentence-aware chunking (overlap 1 sentence) → MiniLM embeddings (ONNX Runtime, no PyTorch) → Chroma (cosine) → top-k chunks filtered by `MIN_RELEVANCE` → grounded prompt with numbered citations → LLM. If nothing passes the threshold, Luna says it lacks evidence instead of guessing. `/api/chat` returns `answer`, `sources` (numbered to match `[n]` citations), `contexts` and `retrieval_mode`.
 
-## Conversation memory (follow-up questions)
-
-Luna remembers the current chat, so you can ask follow-ups like "is that normal?" or "what helps with the second one?" and refer back to things you said earlier (e.g. your age or symptoms).
-
-- Both front-ends send the last few turns with each question (`/api/chat` accepts `{"message": ..., "history": [{"role": "user"|"assistant", "content": ...}]}`).
-- For retrieval, a follow-up is first rewritten into a standalone question using the earlier turns (an extra low-cost LLM call at temperature 0). Without `LLM_API_KEY`, the previous question is combined with the new one instead. The response includes this as `search_query`.
-- The user's earlier messages are added to the prompt as a short context note just before the question, so Luna can resolve "it"/"that" and remember what you told it. Luna's own earlier answers are not sent, so the answer format and citations stay exactly as before; facts still come only from the retrieved excerpts.
-- Replying "yes" after Luna offers a general AI answer now gives that answer.
-- `HISTORY_MESSAGES` (default 8) sets how many earlier messages are used. **New chat** clears the conversation. History is kept in the page only (not saved on the server); reloading the page starts fresh.
-
 ## Knowledge base
 
 - `knowledge/sources.json`: a hand-curated seed of 14 short excerpts. It always loads.
