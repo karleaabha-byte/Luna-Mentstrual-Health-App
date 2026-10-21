@@ -21,6 +21,7 @@ except Exception:
     pass
 
 from rag import KnowledgeBase, answer_question, general_answer
+import symptom_ui
 
 st.set_page_config(page_title="Luna · period care", page_icon="🩸", layout="centered")
 
@@ -80,7 +81,12 @@ st.markdown(f"""
   <span class="pill">✨ AI answers {'on' if llm_on else 'off'}</span>
 </div>""", unsafe_allow_html=True)
 
-chat, tracker = st.tabs(["🩸 Ask Luna", "📅 Cycle tracker"])
+chat, symptoms, tracker = st.tabs(["🩸 Ask Luna", "🔎 Symptom check", "📅 Cycle tracker"])
+
+# ---------- symptom check (forms + moon in the sidebar) ----------
+with symptoms:
+    symptom_ui.render_tab()
+symptom_ui.render_sidebar()
 
 # ---------- chat ----------
 with chat:
