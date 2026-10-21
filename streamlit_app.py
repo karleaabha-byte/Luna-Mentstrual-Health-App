@@ -33,6 +33,11 @@ st.markdown("""
   font-family: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif; }
 .stApp { background: linear-gradient(180deg, #FFE9EF 0%, #FFF4F7 38%, #FFFAFB 100%); color: #3D0F1F; }
 .block-container { padding-top: 2.2rem; max-width: 760px; }
+/* Hide Streamlit's top bar (Share, GitHub, menu) so it doesn't cover the title; keep the sidebar button. */
+header[data-testid="stHeader"] { background: transparent; pointer-events: none; }
+header[data-testid="stHeader"] button, header[data-testid="stHeader"] a { pointer-events: auto; }
+[data-testid="stToolbarActions"], [data-testid="stAppDeployButton"], [data-testid="stMainMenu"],
+[data-testid="stDecoration"] { display: none !important; }
 section[data-testid="stSidebar"] { background: #FCE4EC; border-right: 1px solid #F4C9D6; }
 section[data-testid="stSidebar"][aria-expanded="true"] { width: 360px !important; min-width: 360px !important; }
 .luna-title { display: flex; align-items: center; gap: 14px; margin: 0; }
