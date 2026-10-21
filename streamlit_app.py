@@ -25,40 +25,51 @@ import symptom_ui
 
 st.set_page_config(page_title="Luna · period care", page_icon="🩸", layout="centered")
 
-# ---------- period-themed styling ----------
+# ---------- styling (soft pink, serif headings) ----------
 st.markdown("""
 <style>
-.stApp { background: radial-gradient(circle at 10% 0%, #ffe3ea 0%, #fff1f3 40%, #fff7f8 100%); }
-.block-container { padding-top: 1.6rem; max-width: 780px; }
-.luna-hero { background: linear-gradient(135deg, #8B0A1E 0%, #C8102E 45%, #E8537A 100%);
-  color: #fff; border-radius: 22px; padding: 22px 24px; margin-bottom: 14px;
-  box-shadow: 0 10px 30px rgba(139,10,30,.25); position: relative; overflow: hidden; }
-.luna-hero h1 { color: #fff; margin: 0; font-size: 2.1rem; letter-spacing: .5px; }
-.luna-hero p { margin: 4px 0 0; opacity: .92; }
-.luna-hero .drops { position: absolute; right: 18px; top: 10px; font-size: 2.6rem; opacity: .35; }
-.pill { display: inline-block; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
-  border-radius: 999px; padding: 3px 10px; font-size: .75rem; margin: 10px 6px 0 0; }
-.stTabs [data-baseweb="tab-list"] { gap: 6px; background: #ffd9e0; padding: 5px; border-radius: 14px; }
-.stTabs [data-baseweb="tab"] { border-radius: 10px; padding: 8px 18px; color: #8B0A1E; font-weight: 600; }
-.stTabs [aria-selected="true"] { background: #C8102E !important; color: #fff !important; }
-.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display: none; }
-[data-testid="stChatMessage"] { background: #ffffff; border: 1px solid #f6c9d3; border-radius: 18px;
-  box-shadow: 0 2px 10px rgba(200,16,46,.06); }
-[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background: #ffe3ea; }
-[data-testid="stChatInput"] textarea { border-radius: 14px !important; }
-.card { background: #fff; border: 1px solid #f6c9d3; border-radius: 18px; padding: 16px 18px; margin: 10px 0;
-  box-shadow: 0 2px 10px rgba(200,16,46,.06); }
-.next { background: linear-gradient(135deg, #C8102E, #E8537A); color: #fff; text-align: center; }
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap');
+.stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp input, .stApp textarea {
+  font-family: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif; }
+.stApp { background: linear-gradient(180deg, #FFE9EF 0%, #FFF4F7 38%, #FFFAFB 100%); color: #3D0F1F; }
+.block-container { padding-top: 2.6rem; max-width: 900px; }
+section[data-testid="stSidebar"] { background: #FCE4EC; border-right: 1px solid #F4C9D6; }
+section[data-testid="stSidebar"][aria-expanded="true"] { width: 360px !important; min-width: 360px !important; }
+.luna-title { display: flex; align-items: center; gap: 14px; margin: 0; }
+.luna-title h1 { font-family: "Newsreader", Georgia, serif !important; font-weight: 500; font-size: 3.6rem;
+  line-height: 1; color: #3D0F1F; margin: 0; padding: 0; letter-spacing: -.01em; }
+.luna-sub { color: #8A5566; font-size: 1.18rem; margin: 10px 0 22px; }
+[data-testid="stButtonGroup"] button { background: #fff; border: 1px solid #E5D3D9; color: #3D0F1F;
+  font-size: 1.02rem; padding: 6px 18px; }
+[data-testid="stButtonGroup"] button[kind$="Active"] { background: #FDE2E8; border-color: #EC8FA8; color: #D63A5E; }
+[data-testid="stButtonGroup"] button p { font-size: 1.02rem; }
+[data-testid="stChatMessage"] { background: transparent; padding: 6px 0; gap: 14px; }
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] li { font-size: 1.15rem; line-height: 1.65; color: #3D0F1F; }
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background: #FDE2E8;
+  border: 1px solid #F6C9D3; border-radius: 18px; padding: 10px 20px; width: fit-content; max-width: 85%; }
+[data-testid="stChatMessageAvatarUser"] { display: none; }
+[data-testid="stChatMessage"] img { border-radius: 50%; width: 2.6rem; height: 2.6rem; }
+[data-testid="stChatMessage"] a { color: #D63A5E; }
+[data-testid="stBottom"] > div, [data-testid="stBottomBlockContainer"] { background: #FFFAFB; }
+[data-testid="stChatInput"], [data-testid="stChatInput"] > div { background: #F2EFF4; border-color: #ECE6EE; border-radius: 14px; }
+[data-testid="stChatInput"] textarea { font-size: 1.08rem; color: #3D0F1F; }
+.stButton > button, .stFormSubmitButton > button { border-radius: 12px; font-weight: 600; }
+.stButton > button[kind="secondary"] { background: #fff; border: 1px solid #E5D3D9; color: #3D0F1F; }
+.stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primaryFormSubmit"] {
+  background: linear-gradient(90deg, #E2638E, #D9507E); border: 0; color: #fff; }
+.card { background: #fff; border: 1px solid #EBD3DA; border-radius: 18px; padding: 16px 18px; margin: 10px 0;
+  box-shadow: 0 2px 12px rgba(214,58,94,.06); color: #3D0F1F; }
+.next { background: linear-gradient(135deg, #E2638E, #D9507E); color: #fff; text-align: center; }
 .next small { letter-spacing: .12em; opacity: .85; font-weight: 700; }
-.next .big { font-size: 1.9rem; font-weight: 800; margin: 4px 0; }
+.next .big { font-family: "Newsreader", Georgia, serif; font-size: 2.1rem; font-weight: 500; margin: 4px 0; }
 .phase-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; margin: 10px 0 4px; }
 .phase-bar div { height: 100%; }
-.legend span { font-size: .78rem; margin-right: 12px; color: #6b2a3a; }
+.legend span { font-size: .78rem; margin-right: 12px; color: #8A5566; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
-.log { display: flex; justify-content: space-between; border-bottom: 1px dashed #f6c9d3; padding: 8px 0; }
+.log { display: flex; justify-content: space-between; border-bottom: 1px dashed #EBD3DA; padding: 8px 0; }
 .log:last-child { border-bottom: 0; }
-.muted { color: #9a5a69; font-size: .82rem; }
-.stButton > button { border-radius: 12px; font-weight: 600; }
+.muted { color: #8A5566; font-size: .82rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -72,30 +83,35 @@ def get_kb():
 
 kb = get_kb()
 llm_on = bool(os.getenv("LLM_API_KEY"))
-st.markdown(f"""
-<div class="luna-hero"><div class="drops">🩸🌙</div>
-  <h1>Luna</h1>
-  <p>Your gentle guide to periods, cycles and menstrual health</p>
-  <span class="pill">📚 {len(kb.docs)} trusted source sections</span>
-  <span class="pill">🔎 {'semantic search' if kb.mode.startswith('semantic') else 'keyword search'}</span>
-  <span class="pill">✨ AI answers {'on' if llm_on else 'off'}</span>
-</div>""", unsafe_allow_html=True)
+CRESCENT = ("""<svg width="54" height="54" viewBox="0 0 64 64" aria-hidden="true"><defs>
+<linearGradient id="lc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3A3BC"/><stop offset="1" stop-color="#D9507E"/></linearGradient>
+<mask id="lm"><rect width="64" height="64" fill="#000"/><circle cx="30" cy="33" r="24" fill="#fff"/><circle cx="43" cy="24" r="21" fill="#000"/></mask>
+</defs><rect width="64" height="64" fill="url(#lc)" mask="url(#lm)"/></svg>""")
+st.markdown(f'<div class="luna-title">{CRESCENT}<h1>Luna</h1></div>'
+            '<p class="luna-sub">A gentle guide to your period, grounded in NHS, MedlinePlus and ACOG advice.</p>',
+            unsafe_allow_html=True)
 
-chat, symptoms, tracker = st.tabs(["🩸 Ask Luna", "🔎 Symptom check", "📅 Cycle tracker"])
+MODES = ["Symptom check", "Ask about periods", "Cycle tracker"]
+if hasattr(st, "segmented_control"):
+    mode = st.segmented_control("Mode", MODES, default=MODES[0], key="mode", label_visibility="collapsed") or MODES[0]
+else:  # older Streamlit
+    mode = st.radio("Mode", MODES, horizontal=True, key="mode", label_visibility="collapsed")
 
 # ---------- symptom check (forms + moon in the sidebar) ----------
-with symptoms:
+if mode == MODES[0]:
     symptom_ui.render_tab()
-symptom_ui.render_sidebar()
+symptom_ui.render_sidebar(
+    f"AI writing is {'on' if llm_on else 'off: add LLM_API_KEY in Secrets for full replies'}. "
+    f"Search: {'semantic' if kb.mode.startswith('semantic') else 'keyword'}.")
 
 # ---------- chat ----------
-with chat:
+if mode == MODES[1]:
     if "msgs" not in st.session_state:
         st.session_state.msgs = [{"role": "assistant", "content":
-            "Hi, I'm Luna 🌙 Ask me anything about periods, cramps, PCOS, products or your cycle. "
+            "Hi, I'm Luna. Ask me anything about periods, cramps, PCOS, products or your cycle. "
             "I answer from trusted health sources and show you where it came from."}]
     for m in st.session_state.msgs:
-        with st.chat_message(m["role"], avatar="🌙" if m["role"] == "assistant" else "💗"):
+        with st.chat_message(m["role"], avatar=symptom_ui.LUNA_AVATAR if m["role"] == "assistant" else None):
             st.markdown(m["content"])
     offer = st.session_state.get("offer")
     if offer:
@@ -120,7 +136,9 @@ with chat:
     st.caption("🩺 Educational information only — not a diagnosis. For severe pain, very heavy bleeding or "
                "feeling faint, contact a doctor or emergency services.")
 
-q = st.chat_input("Ask about periods, symptoms, products…") or st.session_state.pop("pending", None)
+    q = st.chat_input("Ask anything about periods, symptoms or products") or st.session_state.pop("pending", None)
+else:
+    q = None
 if q:
     st.session_state.msgs.append({"role": "user", "content": q})
     st.session_state.offer = None
@@ -141,7 +159,7 @@ if q:
 # ---------- tracker ----------
 PHASES = [("Period", "#C8102E"), ("Follicular", "#F48FB1"), ("Ovulation (est.)", "#8E24AA"), ("Luteal", "#F8BBD0")]
 
-with tracker:
+if mode == MODES[2]:
     logs = st.session_state.setdefault("logs", [])
     c1, c2, c3 = st.columns(3)
     start = c1.date_input("Period started", value=None)
