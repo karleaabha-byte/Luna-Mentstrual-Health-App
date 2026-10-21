@@ -173,9 +173,13 @@ function addMessage(text, who, sources) {
   return div;
 }
 
+const userMessages = []; // sent with each question so Luna has context from earlier messages
+
 async function ask(q) {
   q = q.trim();
   if (!q) return;
+  const history = userMessages.slice(-6).map((content) => ({ role: "user", content }));
+  userMessages.push(q);
   $("chips").classList.add("hidden");
   addMessage(q, "user");
   $("question").value = "";
@@ -186,7 +190,7 @@ async function ask(q) {
     const res = await fetch(API + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: q }),
+      body: JSON.stringify({ message: q, history }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Request failed");

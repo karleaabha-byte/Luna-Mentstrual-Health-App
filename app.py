@@ -36,7 +36,8 @@ def chat():
     if not question or len(question) > 1200:
         return jsonify({"error": "Please enter a question under 1,200 characters."}), 400
     try:
-        result = answer_question(question, kb)
+        history = body.get("history") if isinstance(body.get("history"), list) else []
+        result = answer_question(question, kb, history=history[-20:])
         return jsonify(result)
     except Exception:
         app.logger.exception("Chat request failed")

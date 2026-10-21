@@ -123,10 +123,48 @@ def _numbering(chunks):
     return nums
 
 
-def build_prompt(question, chunks):
+def earlier_user_messages(history, limit=6):
+    """The user's previous messages from the chat history ([{"role", "content"}, ...], oldest first)."""
+    msgs = [str(m.get("content", "")).strip()[:500] for m in history or []
+            if isinstance(m, dict) and m.get("role") == "user"]
+    return [m for m in msgs if m][-limit:]
+
+
+def with_user_context(prompt, earlier):
+    """Add the user's earlier messages just before the final "Question:" so follow-ups make sense."""
+    if not earlier:
+        return prompt
+    note = ("Earlier messages from the user in this conversation (context only - use them to understand what the "
+            "question refers to and what the user has told you):\n" + "\n".join(f"- {m}" for m in earlier))
+    head, sep, tail = prompt.rpartition("\n\nQuestion: ")
+    return head + "\n\n" + note + sep + tail
+
+
+CONDENSE_PROMPT = (
+    "Rewrite the user's latest message as one standalone question that makes sense on its own, replacing words "
+    "like 'it' or 'that' with what they refer to in the user's earlier messages. If it is already standalone, "
+    "return it unchanged. Output only the question.\n\nEarlier messages:\n{earlier}\n\nLatest message: {question}"
+)
+
+
+def standalone_question(question, earlier):
+    """Search query for a follow-up question, so retrieval finds sources on what the user is asking about."""
+    if not earlier:
+        return question
+    if os.getenv("LLM_API_KEY"):
+        try:
+            q = generate(CONDENSE_PROMPT.format(earlier="\n".join(f"- {m}" for m in earlier), question=question))
+            if q.strip():
+                return q.strip().strip('"')[:1200]
+        except Exception as e:
+            log.warning("Couldn't rewrite follow-up question: %s", e)
+    return earlier[-1] + " " + question
+
+
+def build_prompt(question, chunks, earlier=None):
     nums = _numbering(chunks)
     ctx = "\n".join(f"[{nums[c['url']]}] {c['title']} ({c['url']}): {c['text']}" for c in chunks)
-    return PROMPT_TEMPLATE.format(context=ctx, question=question)
+    return with_user_context(PROMPT_TEMPLATE.format(context=ctx, question=question), earlier)
 
 
 GENERAL_PROMPT = (
@@ -143,9 +181,10 @@ NOT_IN_SOURCES = ("I couldn't find this in my trusted health sources, so I can't
 GENERAL_LABEL = "⚠️ *Not found in Luna's trusted sources — this is a general AI answer, so double-check important details with a clinician.*\n\n"
 
 
-def general_answer(question):
+def general_answer(question, history=None):
     """Ungrounded answer from the LLM's general knowledge, clearly labelled (same temperature as RAG answers)."""
-    return GENERAL_LABEL + generate(GENERAL_PROMPT.format(question=question))
+    return GENERAL_LABEL + generate(with_user_context(GENERAL_PROMPT.format(question=question),
+                                                      earlier_user_messages(history)))
 
 
 def generate(prompt, retries=5):
@@ -173,15 +212,17 @@ def _sources(chunks):
     return [{"n": n, "title": titles[u], "url": u} for u, n in _numbering(chunks).items()]
 
 
-def answer_question(question, kb, k=5):
-    chunks = kb.retrieve(question, k=k)
+def answer_question(question, kb, k=5, history=None):
+    """`history`: earlier chat messages ([{"role", "content"}, ...]); the user's ones give follow-ups context."""
+    earlier = earlier_user_messages(history)
+    chunks = kb.retrieve(standalone_question(question, earlier), k=k)
     mode = getattr(kb, "mode", "unknown")
     if not chunks:
         # GENERAL_ANSWERS: "ask" (default) = offer an AI answer, "auto" = answer straight away, "off" = never.
         policy = os.getenv("GENERAL_ANSWERS", "ask").lower()
         can = bool(os.getenv("LLM_API_KEY")) and policy != "off"
         if can and policy == "auto":
-            return {"answer": general_answer(question), "sources": [], "contexts": [], "retrieval_mode": mode,
+            return {"answer": general_answer(question, history), "sources": [], "contexts": [], "retrieval_mode": mode,
                     "grounded": False, "offer_general": False}
         msg = (NOT_IN_SOURCES if can else NO_EVIDENCE)
         return {"answer": msg, "sources": [], "contexts": [], "retrieval_mode": mode,
@@ -197,6 +238,6 @@ def answer_question(question, kb, k=5):
         answer = ("I'm running without a configured AI provider, so this is a source-based summary rather than a "
                   "generated answer.\n\n" + " ".join(sents) + "\n\nFor a tailored answer, configure LLM_API_KEY in .env.")
     else:
-        answer = generate(build_prompt(question, chunks))
+        answer = generate(build_prompt(question, chunks, earlier))
     return {"answer": answer, "sources": _sources(chunks), "contexts": [c["text"] for c in chunks],
             "retrieval_mode": mode, "grounded": True, "offer_general": False}

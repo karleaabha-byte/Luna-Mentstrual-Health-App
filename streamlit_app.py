@@ -98,7 +98,7 @@ with chat:
             st.session_state.offer = None
             try:
                 with st.spinner("Asking the AI…"):
-                    st.session_state.msgs.append({"role": "assistant", "content": general_answer(offer)})
+                    st.session_state.msgs.append({"role": "assistant", "content": general_answer(offer, st.session_state.msgs[:-2])})
             except Exception as e:
                 st.session_state.msgs.append({"role": "assistant", "content": f"Sorry, the AI provider returned an error: {e}"})
             st.rerun()
@@ -120,7 +120,7 @@ if q:
     st.session_state.offer = None
     try:
         with st.spinner("Checking trusted sources…"):
-            r = answer_question(q, kb)
+            r = answer_question(q, kb, history=st.session_state.msgs[:-1])  # earlier messages give context
         text = r["answer"]
         if r.get("offer_general"):
             st.session_state.offer = q
