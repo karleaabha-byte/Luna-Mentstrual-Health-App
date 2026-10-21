@@ -32,28 +32,28 @@ st.markdown("""
 .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp input, .stApp textarea {
   font-family: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif; }
 .stApp { background: linear-gradient(180deg, #FFE9EF 0%, #FFF4F7 38%, #FFFAFB 100%); color: #3D0F1F; }
-.block-container { padding-top: 2.6rem; max-width: 900px; }
+.block-container { padding-top: 2.2rem; max-width: 760px; }
 section[data-testid="stSidebar"] { background: #FCE4EC; border-right: 1px solid #F4C9D6; }
 section[data-testid="stSidebar"][aria-expanded="true"] { width: 360px !important; min-width: 360px !important; }
 .luna-title { display: flex; align-items: center; gap: 14px; margin: 0; }
-.luna-title h1 { font-family: "Newsreader", Georgia, serif !important; font-weight: 500; font-size: 3.6rem;
+.luna-title h1 { font-family: "Newsreader", Georgia, serif !important; font-weight: 500; font-size: 2.8rem;
   line-height: 1; color: #3D0F1F; margin: 0; padding: 0; letter-spacing: -.01em; }
-.luna-sub { color: #8A5566; font-size: 1.18rem; margin: 10px 0 22px; }
+.luna-sub { color: #8A5566; font-size: 1rem; margin: 6px 0 16px; }
 [data-testid="stButtonGroup"] button { background: #fff; border: 1px solid #E5D3D9; color: #3D0F1F;
-  font-size: 1.02rem; padding: 6px 18px; }
+  font-size: .92rem; padding: 4px 14px; }
 [data-testid="stButtonGroup"] button[kind$="Active"] { background: #FDE2E8; border-color: #EC8FA8; color: #D63A5E; }
-[data-testid="stButtonGroup"] button p { font-size: 1.02rem; }
+[data-testid="stButtonGroup"] button p { font-size: .92rem; }
 [data-testid="stChatMessage"] { background: transparent; padding: 6px 0; gap: 14px; }
 [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p,
-[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] li { font-size: 1.15rem; line-height: 1.65; color: #3D0F1F; }
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] li { font-size: 1rem; line-height: 1.6; color: #3D0F1F; }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background: #FDE2E8;
-  border: 1px solid #F6C9D3; border-radius: 18px; padding: 10px 20px; width: fit-content; max-width: 85%; }
+  border: 1px solid #F6C9D3; border-radius: 18px; padding: 6px 16px; width: fit-content; max-width: 85%; }
 [data-testid="stChatMessageAvatarUser"] { display: none; }
-[data-testid="stChatMessage"] img { border-radius: 50%; width: 2.6rem; height: 2.6rem; }
+[data-testid="stChatMessage"] img { border-radius: 50%; width: 2.1rem; height: 2.1rem; }
 [data-testid="stChatMessage"] a { color: #D63A5E; }
 [data-testid="stBottom"] > div, [data-testid="stBottomBlockContainer"] { background: #FFFAFB; }
 [data-testid="stChatInput"], [data-testid="stChatInput"] > div { background: #F2EFF4; border-color: #ECE6EE; border-radius: 14px; }
-[data-testid="stChatInput"] textarea { font-size: 1.08rem; color: #3D0F1F; }
+[data-testid="stChatInput"] textarea { font-size: .98rem; color: #3D0F1F; }
 .stButton > button, .stFormSubmitButton > button { border-radius: 12px; font-weight: 600; }
 .stButton > button[kind="secondary"] { background: #fff; border: 1px solid #E5D3D9; color: #3D0F1F; }
 .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primaryFormSubmit"] {
@@ -83,7 +83,7 @@ def get_kb():
 
 kb = get_kb()
 llm_on = bool(os.getenv("LLM_API_KEY"))
-CRESCENT = ("""<svg width="54" height="54" viewBox="0 0 64 64" aria-hidden="true"><defs>
+CRESCENT = ("""<svg width="42" height="42" viewBox="0 0 64 64" aria-hidden="true"><defs>
 <linearGradient id="lc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3A3BC"/><stop offset="1" stop-color="#D9507E"/></linearGradient>
 <mask id="lm"><rect width="64" height="64" fill="#000"/><circle cx="30" cy="33" r="24" fill="#fff"/><circle cx="43" cy="24" r="21" fill="#000"/></mask>
 </defs><rect width="64" height="64" fill="url(#lc)" mask="url(#lm)"/></svg>""")
